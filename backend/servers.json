@@ -1,0 +1,22 @@
+[
+  {
+    "id": 3,
+    "name": "homeServerMysql",
+    "host": "127.0.0.2",
+    "port": 3306,
+    "username": "root",
+    "password": "",
+    "database": "test",
+    "type": "mysql"
+  },
+  {
+    "id": 4,
+    "name": "homeServerPostgres",
+    "host": "localhost",
+    "port": 5432,
+    "username": "postgres",
+    "password": "postgres",
+    "database": "test",
+    "type": "postgresql"
+  }
+]

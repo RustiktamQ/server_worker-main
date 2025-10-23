@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Тест API: Execute и Export</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 0 10px;
+            background-color: #f0f0f0;
+        }
+
+        h2 {
+            border-bottom: 2px solid #ccc;
+            padding-bottom: 5px;
+            margin-top: 40px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+
+        select,
+        input[type=text],
+        textarea {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+        }
+
+        textarea {
+            height: 120px;
+            resize: vertical;
+            font-family: monospace;
+        }
+
+        button {
+            margin-top: 15px;
+            padding: 10px 25px;
+            font-weight: bold;
+            background-color: #007bff;
+            border: none;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .status {
+            margin-top: 10px;
+            font-weight: bold;
+            min-height: 20px;
+        }
+
+        .success {
+            color: darkgreen;
+        }
+
+        .error {
+            color: darkred;
+        }
+
+        .response {
+            margin-top: 20px;
+            padding: 15px;
+            background: white;
+            border: 1px solid #ddd;
+            max-height: 350px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 13px;
+        }
+
+        .section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Тест исполнения запросов и экспорта</h1>
+
+    <div class="section" id="execute-section">
+        <h2>Выполнить SQL-запрос</h2>
+        <label for="execute-server">Выбрать сервер:</label>
+        <select id="execute-server"></select>
+        <label for="execute-query">SQL-запрос:</label>
+        <textarea id="execute-query">SELECT * FROM lessons;</textarea>
+        <button id="execute-btn">Выполнить</button>
+        <div class="status" id="execute-status"></div>
+        <pre class="response" id="execute-response" style="display:none;"></pre>
+    </div>
+
+    <div class="section" id="export-section">
+        <h2>Экспорт данных</h2>
+        <label for="export-format">Формат экспорта:</label>
+        <select id="export-format">
+            <option value="excel">Excel</option>
+            <option value="json">JSON</option>
+            <option value="csv">CSV</option>
+        </select>
+        <button id="export-btn">Скачать пример</button>
+        <div class="status" id="export-status"></div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let dataToExport;
+
+        async function fetchServers() {
+            const res = await fetch(`${API_BASE}/servers`);
+            if (!res.ok) throw new Error(`Ошибка загрузки серверов: ${res.status}`);
+            return res.json();
+        }
+
+        function fillServerSelect(selectElem, servers) {
+            selectElem.innerHTML = '';
+            servers.forEach(s => {
+                const option = document.createElement('option');
+                option.value = s.name;
+                option.textContent = `${s.name} (${s.type})`;
+                selectElem.appendChild(option);
+            });
+        }
+
+        async function initServers() {
+            try {
+                const servers = await fetchServers();
+                fillServerSelect(document.getElementById('execute-server'), servers);
+            } catch (err) {
+                console.error(err);
+                alert('Не удалось загрузить список серверов');
+            }
+        }
+
+        document.getElementById('execute-btn').addEventListener('click', async () => {
+            const server = document.getElementById('execute-server').value;
+            const query = document.getElementById('execute-query').value.trim();
+            const status = document.getElementById('execute-status');
+            const responsePre = document.getElementById('execute-response');
+            responsePre.style.display = 'none';
+            status.textContent = '';
+            if (!server || !query) {
+                status.textContent = 'Пожалуйста, выберите сервер и введите запрос';
+                status.className = 'status error';
+                return;
+            }
+            status.textContent = 'Выполняется запрос...';
+            status.className = 'status';
+
+            try {
+                const res = await fetch(`${API_BASE}/execute`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ selected_server: server, query: query })
+                });
+                const data = await res.json();
+                dataToExport = data.data;
+                if (res.ok) {
+                    status.textContent = 'Запрос выполнен успешно';
+                    status.className = 'status success';
+                    responsePre.textContent = JSON.stringify(data, null, 2);
+                    responsePre.style.display = 'block';
+                } else {
+                    status.textContent = `Ошибка выполнения: ${res.status}`;
+                    status.className = 'status error';
+                    responsePre.textContent = JSON.stringify(data, null, 2);
+                    responsePre.style.display = 'block';
+                }
+            } catch (e) {
+                status.textContent = `Ошибка сети: ${e.message}`;
+                status.className = 'status error';
+                console.log(e)
+            }
+        });
+
+        document.getElementById('export-btn').addEventListener('click', async () => {
+            const format = document.getElementById('export-format').value;
+            const status = document.getElementById('export-status');
+            status.textContent = '';
+            status.className = 'status';
+
+            const data = dataToExport;
+            console.log(dataToExport)
+
+            const body = JSON.stringify({ data, format });
+
+            status.textContent = 'Генерируется файл...';
+
+            try {
+                const res = await fetch(`${API_BASE}/export`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body
+                });
+
+                if (!res.ok) {
+                    throw new Error(`Ошибка ${res.status}: ${res.statusText}`);
+                }
+
+                const blob = await res.blob();
+
+                if (blob.size === 0) {
+                    throw new Error('Получен пустой файл');
+                }
+
+                const contentDisposition = res.headers.get('Content-Disposition');
+                let filename = 'exported_file';
+
+                if (contentDisposition) {
+                    const match = contentDisposition.match(/filename="(.+)"/);
+                    if (match) filename = match[1];
+                }
+
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+
+                status.textContent = 'Файл сгенерирован и скачан';
+                status.className = 'status success';
+
+            } catch (e) {
+                console.error('Download error:', e);
+                status.textContent = `Ошибка: ${e.message}`;
+                status.className = 'status error';
+            }
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initServers();
+        });
+    </script>
+</body>
+
+</html>

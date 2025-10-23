@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Test Import Data - FormData + Pydantic</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        input[type="text"],
+        input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="file"]:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+
+        .server-item {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+
+        .server-item input {
+            flex: 1;
+        }
+
+        button {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+        }
+
+        .remove-btn {
+            background: linear-gradient(45deg, #dc3545, #c82333);
+            padding: 8px 12px;
+            font-size: 14px;
+        }
+
+        .add-btn {
+            background: linear-gradient(45deg, #28a745, #1e7e34);
+            margin-bottom: 20px;
+        }
+
+        #status {
+            margin-top: 25px;
+            padding: 20px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+
+        .loading {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 2px solid #ffeaa7;
+        }
+
+        .response {
+            background-color: #e9ecef;
+            color: #495057;
+            border: 2px solid #dee2e6;
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .server-badge {
+            display: inline-block;
+            background: #6c757d;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin: 2px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>📁 Test Import Data</h1>
+
+        <form id="importForm">
+            <div class="form-group">
+                <label for="fileInput">📄 File to Upload:</label>
+                <input type="file" id="fileInput" name="upload_file" required>
+            </div>
+
+            <div class="form-group">
+                <label for="tableName">🗃️ Table Name:</label>
+                <input type="text" id="tableName" name="table_name" value="test_table" required>
+            </div>
+
+            <div class="form-group">
+                <label for="schemaName">🏗️ Schema Name:</label>
+                <input type="text" id="schemaName" name="schema_name" value="public" required>
+            </div>
+
+            <div class="form-group">
+                <label>🌐 Servers List:</label>
+                <div id="serversList">
+                    <div class="server-item">
+                        <input type="text" name="servers" placeholder="server1" value="server1" required>
+                        <button type="button" class="remove-btn" onclick="removeServer(this)">🗑️</button>
+                    </div>
+                    <div class="server-item">
+                        <input type="text" name="servers" placeholder="server2" value="server2">
+                        <button type="button" class="remove-btn" onclick="removeServer(this)">🗑️</button>
+                    </div>
+                </div>
+                <button type="button" class="add-btn" onclick="addServer()">➕ Add Server</button>
+            </div>
+
+            <button type="submit" style="width: 100%;">
+                🚀 Test Import
+            </button>
+        </form>
+
+        <div id="status"></div>
+        <div id="response" class="response" style="display: none;">
+            <h3>Response:</h3>
+            <pre id="responseContent"></pre>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        function addServer() {
+            const serversList = document.getElementById('serversList');
+            const serverItem = document.createElement('div');
+            serverItem.className = 'server-item';
+            serverItem.innerHTML = `
+                <input type="text" name="servers" placeholder="host:port or connection string" required>
+                <button type="button" class="remove-btn" onclick="removeServer(this)">🗑️</button>
+            `;
+            serversList.appendChild(serverItem);
+        }
+
+        function removeServer(button) {
+            const serverItems = document.querySelectorAll('.server-item');
+            if (serverItems.length > 1) {
+                button.parentNode.remove();
+            } else {
+                alert('At least one server is required');
+            }
+        }
+
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = type;
+        }
+
+        function showResponse(data) {
+            const responseDiv = document.getElementById('response');
+            const responseContent = document.getElementById('responseContent');
+
+            responseContent.textContent = JSON.stringify(data, null, 2);
+            responseDiv.style.display = 'block';
+        }
+
+        function hideResponse() {
+            document.getElementById('response').style.display = 'none';
+        }
+
+        document.getElementById('importForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            const tableName = document.getElementById('tableName').value;
+            const schemaName = document.getElementById('schemaName').value;
+
+            if (!file) {
+                showStatus('❌ Please select a file', 'error');
+                return;
+            }
+
+            const serverInputs = document.querySelectorAll('input[name="servers"]');
+            const server = document.querySelectorAll('input[name="servers"]')[0].value;
+
+            const formData = new FormData();
+            formData.append('upload_file', file);
+            formData.append('table_name', tableName);
+            formData.append('schema_name', schemaName);
+            formData.append('server', server);
+
+            showStatus('⏳ Sending request to FastAPI...', 'loading');
+            hideResponse();
+
+            try {
+                const response = await fetch(`${API_BASE}/import`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const responseData = await response.json();
+
+                if (response.ok) {
+                    showStatus('✅ Import successful!', 'success');
+                    showResponse(responseData);
+
+                } else {
+                    showStatus(`❌ Error: ${response.status} - ${responseData.detail || 'Unknown error'}`, 'error');
+                    showResponse(responseData);
+                }
+            } catch (error) {
+                showStatus(`❌ Network error: ${error.message}`, 'error');
+                console.error('Network error:', error);
+            }
+        });
+
+        window.addEventListener('load', function () {
+            const serverItems = document.querySelectorAll('.server-item');
+            if (serverItems.length === 1) {
+                addServer();
+            }
+        });
+    </script>
+</body>
+
+</html>

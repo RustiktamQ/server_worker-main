@@ -1,0 +1,14 @@
+{
+    "[python]": {
+        "editor.formatOnType": true,
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.tabSize": 4,
+    },
+
+    "files.autoSave": "afterDelay",
+    "black-formatter.importStrategy": "fromEnvironment",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.unusedImports": "explicit"
+    },
+}
