@@ -16,7 +16,7 @@
     "port": 5432,
     "username": "postgres",
     "password": "postgres",
-    "database": "my_database",
+    "database": "appdb",
     "type": "postgresql"
   }
 ]
